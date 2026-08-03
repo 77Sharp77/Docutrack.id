@@ -283,3 +283,219 @@ const SCRIPT_LOCK = LockService.getScriptLock();
 // ======================================================
 // END CONFIGURATION
 // ======================================================
+// ======================================================
+// RESPONSE HELPER
+// ======================================================
+
+function jsonResponse(result) {
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function successResponse(message, data = null, meta = {}) {
+  return jsonResponse({
+    success: true,
+    message: message || "Berhasil",
+    data,
+    meta
+  });
+}
+
+function errorResponse(message, errorCode = "UNKNOWN_ERROR", data = null) {
+  return jsonResponse({
+    success: false,
+    message: message || "Terjadi kesalahan.",
+    errorCode,
+    data
+  });
+}
+
+// ======================================================
+// REQUEST PARSER
+// ======================================================
+
+function parseRequest(e) {
+
+  if (!e || !e.postData || !e.postData.contents) {
+    return {
+      action: "",
+      token: "",
+      payload: {}
+    };
+  }
+
+  try {
+
+    const request = JSON.parse(e.postData.contents);
+
+    return {
+      action: String(request.action || "").trim(),
+      token: String(request.token || "").trim(),
+      payload: request.payload || {}
+    };
+
+  } catch (err) {
+
+    throw new Error("REQUEST_JSON_INVALID");
+
+  }
+
+}
+
+// ======================================================
+// HEALTH CHECK
+// ======================================================
+
+function doGet() {
+
+  return successResponse(
+    "API aktif",
+    {
+      app: CONFIG.APP_NAME,
+      version: CONFIG.VERSION,
+      timezone: CONFIG.TIMEZONE,
+      serverTime: new Date().toISOString()
+    }
+  );
+
+}
+
+// ======================================================
+// API ENTRY POINT
+// ======================================================
+
+function doPost(e) {
+
+  try {
+
+    const request = parseRequest(e);
+
+    if (!request.action) {
+
+      return errorResponse(
+        "Action wajib diisi.",
+        "ACTION_REQUIRED"
+      );
+
+    }
+
+    return dispatchRequest(request);
+
+  } catch (err) {
+
+    if (CONFIG.ENABLE_DEBUG) {
+      console.error(err);
+    }
+
+    return errorResponse(
+      err.message || "Internal Server Error",
+      "SERVER_ERROR"
+    );
+
+  }
+
+}
+
+// ======================================================
+// ROUTER
+// ======================================================
+
+function dispatchRequest(request) {
+
+  const routes = {
+
+    health: apiHealth,
+
+    login: apiLogin,
+
+    logout: apiLogout,
+
+    verifySession: apiVerifySession,
+
+    dashboard: apiDashboard,
+
+    setupDatabase: apiSetupDatabase
+
+  };
+
+  if (!routes[request.action]) {
+
+    return errorResponse(
+      "Action tidak ditemukan.",
+      "ACTION_NOT_FOUND"
+    );
+
+  }
+
+  return routes[request.action](request);
+
+}
+
+// ======================================================
+// PUBLIC API
+// ======================================================
+
+function apiHealth() {
+
+  return successResponse(
+    "Backend siap digunakan.",
+    {
+      app: CONFIG.APP_NAME,
+      version: CONFIG.VERSION,
+      timestamp: new Date().toISOString()
+    }
+  );
+
+}
+
+// ======================================================
+// PLACEHOLDER ROUTE
+// (akan diisi pada PART berikutnya)
+// ======================================================
+
+function apiLogin(request) {
+
+  return errorResponse(
+    "Login belum diimplementasikan.",
+    "NOT_IMPLEMENTED"
+  );
+
+}
+
+function apiLogout(request) {
+
+  return errorResponse(
+    "Logout belum diimplementasikan.",
+    "NOT_IMPLEMENTED"
+  );
+
+}
+
+function apiVerifySession(request) {
+
+  return errorResponse(
+    "Verify Session belum diimplementasikan.",
+    "NOT_IMPLEMENTED"
+  );
+
+}
+
+function apiDashboard(request) {
+
+  return errorResponse(
+    "Dashboard belum diimplementasikan.",
+    "NOT_IMPLEMENTED"
+  );
+
+}
+
+function apiSetupDatabase(request) {
+
+  SetupDatabase();
+
+  return successResponse(
+    "Setup Database selesai."
+  );
+
+}
